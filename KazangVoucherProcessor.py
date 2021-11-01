@@ -9,6 +9,9 @@ voucherDataList = []
 # VoucherData class stores data dictionary {property: value} and ordered line item list
 class VoucherData:
 
+    # Class variable -> Store cumulative count and value per voucher type 
+    voucherSummaryDictionary = {}
+
     """
         voucherFields is a list of fields obtained from the file
         lineItems is a list containing line items as they appear in the file
@@ -28,6 +31,17 @@ class VoucherData:
                 self.lineItemData.append(item)
             else:
                 self.lineItemData.append(self.voucherDataDictionary[item])
+
+        #Obtain voucher value from description
+        voucherDescription = self.voucherDataDictionary["description"]
+        voucherValue = float(voucherDescription.split(" ")[1])
+
+        # Update total vouchers and total value per voucher type. e.g. total Cell-C voucher count and value
+        if (voucherDescription not in VoucherData.voucherSummaryDictionary):
+            VoucherData.voucherSummaryDictionary[voucherDescription] = [voucherValue, 1, voucherValue]
+        else:
+            updatedCount = VoucherData.voucherSummaryDictionary[voucherDescription][1] + 1  
+            VoucherData.voucherSummaryDictionary[voucherDescription] = [voucherValue, updatedCount, voucherValue * updatedCount]
 
     def printVoucherData(self):
         for voucherKey in self.voucherDataDictionary:
@@ -90,35 +104,25 @@ def processVoucherFile():
         exit()
     
 # Voucher validation, compare expected voucher summary with calculated values from voucherData body
-def validateVoucherSummary():
-    voucherSummaryDictionary = {}
-    
-    # Iterate through all created voucher objects from the list, calculate count and value, and store in a dictionary (voucherSummaryDictionary)
-    for voucherObject in voucherDataList:
-        voucherValue = float(voucherObject.voucherDataDictionary["description"].split(" ")[1])
-        voucherDescription = voucherObject.voucherDataDictionary["description"]
-        if (voucherDescription not in voucherSummaryDictionary):
-            voucherSummaryDictionary[voucherDescription] = [voucherValue, 1, voucherValue]
-        else:
-            voucherSummaryDictionary[voucherDescription] = [
-                voucherSummaryDictionary[voucherDescription][0],                                                            # Voucher Value per unit
-                voucherSummaryDictionary[voucherDescription][1] + 1,                                                        # Increment number of vouchers
-                voucherSummaryDictionary[voucherDescription][0] * (voucherSummaryDictionary[voucherDescription][1] + 1)     # Calculate cumulative voucher value
-            ]
-
+def validateVoucherSummary(headerVoucherSummary):
     terminateProgram = False
 
+    print(VoucherData.voucherSummaryDictionary)
+    print(headerVoucherSummary)
+
     # Iterate through all the voucher summary entries from the header data and compare calculated vs expected values.
-    for voucherSummaryItem in headerDictionary["voucher_summary"]:
+    for voucherSummaryItem in headerVoucherSummary:
         voucherDescription = voucherSummaryItem[0]
 
+        # Voucher summary data from header
         voucherExpectedCount = int(voucherSummaryItem[1])
         voucherExpectedValue = float(voucherSummaryItem[2])
 
-        voucherCalculatedCount = voucherSummaryDictionary[voucherDescription][1]
-        voucherCalculatedValue = voucherSummaryDictionary[voucherDescription][2]
+        # Calculated summary data from VoucerData class
+        voucherCalculatedCount = VoucherData.voucherSummaryDictionary[voucherDescription][1]
+        voucherCalculatedValue = VoucherData.voucherSummaryDictionary[voucherDescription][2]
 
-        # Produce appropriate error when calculated values don't correspond to expected values
+        # Produce appropriate error when calculated values don't correspond with expected values
         if (voucherExpectedCount != voucherCalculatedCount):
             print("Error: Expected a total count of %d for %s vouchers, received %d" % (voucherExpectedCount, voucherDescription, voucherCalculatedCount))
             terminateProgram = True
@@ -128,6 +132,9 @@ def validateVoucherSummary():
 
     if (terminateProgram):
         exit()
+
+    # If validation passes, return true
+    return True
          
 #Write processed data to a file
 def writeDataToFile():
@@ -177,7 +184,7 @@ def writeDataToFile():
 # Main method
 if __name__ == "__main__":
     processVoucherFile()
-    validateVoucherSummary()
+    validateVoucherSummary(headerDictionary["voucher_summary"])
     writeDataToFile()
 
 
