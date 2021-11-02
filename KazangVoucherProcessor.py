@@ -1,3 +1,5 @@
+import math
+
 #voucherFileName = input("Enter file name for processing:\n")
 
 # Global Variables
@@ -52,9 +54,9 @@ class VoucherData:
             print(item)
 
 # File processing
-def processVoucherFile():
+def processVoucherFile(fileName):
     try:
-        voucherFileObj = open(voucherFileName, "r")
+        voucherFileObj = open(fileName, "r")
         nextLine = voucherFileObj.readline()
 
         # Line processing and adding header parameters in the header dictionary, terminates at voucher_fields
@@ -85,7 +87,7 @@ def processVoucherFile():
 
         #print(headerDictionary)
 
-        # Line processing, creating VoucherData objects and adding them in a list (voucherDataList)
+        # Line processing => creating VoucherData objects and adding them in a list (voucherDataList)
         while nextLine:
             nextLine = nextLine.rstrip("\n")
 
@@ -107,9 +109,6 @@ def processVoucherFile():
 def validateVoucherSummary(headerVoucherSummary):
     terminateProgram = False
 
-    print(VoucherData.voucherSummaryDictionary)
-    print(headerVoucherSummary)
-
     # Iterate through all the voucher summary entries from the header data and compare calculated vs expected values.
     for voucherSummaryItem in headerVoucherSummary:
         voucherDescription = voucherSummaryItem[0]
@@ -126,7 +125,7 @@ def validateVoucherSummary(headerVoucherSummary):
         if (voucherExpectedCount != voucherCalculatedCount):
             print("Error: Expected a total count of %d for %s vouchers, received %d" % (voucherExpectedCount, voucherDescription, voucherCalculatedCount))
             terminateProgram = True
-        elif (voucherExpectedValue != voucherCalculatedValue):
+        elif (not math.isclose(voucherExpectedValue, voucherCalculatedValue)): # Comparing 2 floats => using math.isclose rather than ==
             print("Error: Expected a cumulative value of R%.2f for %s vouchers, received R%.2f" % (voucherExpectedValue, voucherDescription, voucherCalculatedValue))
             terminateProgram = True
 
@@ -165,8 +164,6 @@ def writeDataToFile():
                     columnWidthSpacing = int(headerDictionary["column_width"]) + int(headerDictionary["column_spacing"])
                     finalOutput = finalOutput + "{:<{space}}".format("", space = leftMargin) if column == 0 else finalOutput    # Add left margin
                     finalOutput += "{:<{space}}".format(cellData, space = columnWidthSpacing)                                   # Add appropriate column spacing
-                if (count > voucherSize):
-                    continue
             finalOutput += "\n"
 
         rowSpacing = int(headerDictionary["row_spacing"])  
@@ -181,9 +178,19 @@ def writeDataToFile():
     newFile.write(finalOutput)
     newFile.close()
 
+    print("Successfully printed results in \"%s\" text file" % voucherResultFileName)
+    return voucherResultFileName
+
+def clearGlobalVariables():
+    global headerDictionary
+    global voucherDataList
+    headerDictionary = {}
+    voucherDataList = []
+    VoucherData.voucherSummaryDictionary = {}
+
 # Main method
 if __name__ == "__main__":
-    processVoucherFile()
+    processVoucherFile(voucherFileName)
     validateVoucherSummary(headerDictionary["voucher_summary"])
     writeDataToFile()
 
